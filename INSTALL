@@ -1,0 +1,23 @@
+#!/bin/sh
+
+#Install dependencies
+sudo apt-get install build-essential scons python-biopython libperl-dev libz-dev libcppdb-dev
+
+#Install ViennaRNA
+wget www.tbi.univie.ac.at/RNA/download/sourcecode/2_2_x/ViennaRNA-2.2.7.tar.gz
+tar -xvzf ViennaRNA-2.2.7.tar.gz
+cd ViennaRNA-2.2.7
+./configure
+make
+sudo make install
+cd ..
+rm -r ViennaRNA-2.2.7
+rm ViennaRNA-2.2.7.tar.gz
+
+#Install Rosetta
+tar -xvzf rosetta_src_3.7_bundle.tgz
+mv rosetta_src_2016.32.58837_bundle Rosetta
+python install.py
+cd /Rosetta/main/source
+./scons.py -j2 mode=release bin
+cd ../../..
