@@ -1,13 +1,20 @@
 #!/usr/bin/python
 
-#SYNTAX: ./3daptamers.py SEQ job# returnDNA sectruct ncycles
-#BEWARE: There is somes spaces that MUST NOT be replaced by tabulations !
+#SYNTAX: ./3daptamers.py SEQ folder returnDNA sectruct
+#BEWARE: SOME TRIPLE SPACES ARE NEEDED AND MUST NOT BE REPLACED BY TABS ! 
 
 from sys import *
 from os import system, chdir, getcwd
+
+if argc<5:
+	print "SYNTAX: ./3daptamers.py SEQ folder returnDNA sectruct"
+	exit(0)
+
 a = 0
+ncycles = int(argv[5])
+
 def progress(string):
-	avancement = open("avancement.txt", "a")
+	avancement = open("progress.txt", "a")
 	avancement.writelines([string+'\n'])
 	avancement.close()
 
@@ -16,11 +23,9 @@ def console(string):
 	print string
 	print "----------------------------------------------------------------------------------------"
 
-# PATH DEFINITION
+# Path definition
 console("Path definitions")
-
-userdir = "/path/to/directory" #You have to modify this line :)
-
+userdir = "~/aptamers"
 exportcmd = "export ROSETTA=%s/Rosetta ; export ROSETTA3=%s/Rosetta/main/source ; export RNA_TOOLS=$ROSETTA/tools/rna_tools; python $RNA_TOOLS/sym_link.py ; export PATH=$PATH:$RNA_TOOLS/bin/export PYTHONPATH=$PYTHONPATH:$RNA_TOOLS/bin/ ;"%(userdir, userdir)
 path = '%s/%s'%(userdir, argv[2])
 
@@ -33,7 +38,7 @@ while path != getcwd():
 			progress('!Unable to create task directory on server')
 			exit(1)
 
-avancement = open("avancement.txt", "w")
+avancement = open("progress.txt", "w")
 avancement.writelines(["1\n"])
 avancement.close()
 
@@ -46,16 +51,16 @@ except ImportError as e:
 	progress('!Import error: %s'%e)
 	exit(1)
 
-# If needed, transcription to RNA
+# Transcribe in RNA
 if 'T' in argv[1]:
-	console("Transcription to RNA")
+	console("Transcription in RNA")
 	progress('2')
 	sequ = Seq( argv[1] , IUPAC.unambiguous_dna).transcribe()
 else:
 	sequ = Seq( argv[1] , IUPAC.unambiguous_dna)
 
-# Saving in FASTA (aptamer.fa)
-console("Saving in FASTA")
+# Save in FASTA format (aptamer.fa)
+console("Saving in FASTA format")
 progress('3')
 rec1 = SeqRecord( seq=sequ , id="aptamer" , name='aptamer1', description='Sequence ADN')
 try:
@@ -66,7 +71,7 @@ except:
 	exit(1)
 
 
-# Searching for the secondary structure
+#Searching for the secondary structure
 if len(argv[4]) != len(sequ):
 	console("Searching for the secondary structure")
 	progress('4')
@@ -97,10 +102,10 @@ else:
 		exit(1)
 
 
-# Creation of config files
-console("Creation of config files")
+# Finding known helix in sequence
+console("Identifying helixes")
 progress('5')
-print exportcmd+"python $RNA_TOOLS/job_setup/helix_preassemble_setup.py -secstruct %s/aptamer.dtb -fasta %s/aptamer.fa"%(path, path)
+print "%s/aptamer.dtb %s/aptamer.fa"%(path, path)
 a += system(exportcmd+"python $RNA_TOOLS/job_setup/helix_preassemble_setup.py -secstruct %s/aptamer.dtb -fasta %s/aptamer.fa"%(path, path))
 if a:
 	progress('!No CMDLINES file created')
@@ -114,38 +119,24 @@ N = -1
 for word in option.split():
 	if "helix" in word: N+=1
 fichier.close()
-fichier = open("README_SETUP", "w")
-lines = [ exportcmd+"python $RNA_TOOLS/job_setup/rna_denovo_setup.py -fasta %s/aptamer.fa -secstruct_file %s/aptamer.dtb "%(path, path),
-			"-fixed_stems ",
-			"-no_minimize ",
-			"-tag aptamer ",
-			"-working_res 1-%d "%(len(primaire)),
-			"-cycles %d "% argv[5],
-			"-ignore_zero_occupancy false ",
-			 option + '\n' ]
-fichier.writelines(lines)
-fichier.close()
 
-# preprocessing
-console("Preprocessing")
+# preprocessing ==> Predict the helixN.out 
+console("Preprocessing helixes")
 progress('6')
 a += system(exportcmd+"/bin/bash %s/CMDLINES"%path)
 if a:
 	progress('!Unable to run CMDLINES')
 	exit(1)
-a += system(exportcmd+"/bin/bash %s/README_SETUP"%path)
-if a:
-	progress('!Unable to run README_SETUP')
-	exit(1)
 
 # computation
-console("Computation")
+console("Computation (this may take a while)")
 progress('7')
-
-a += system(exportcmd+"/bin/bash %s/README_FARFAR"%path)
+a += system(exportcmd+"$ROSETTA3/bin/rna_denovo.linuxgccrelease -fasta %s/aptamer.fa -secstruct_file %s/aptamer.dtb -fixed_stems -tag aptamer -working_res 1-%d -cycles %d -ignore_zero_occupancy false -include_neighbor_base_stacks  -minimize_rna false"%(path, path, len(primaire), ncycles)+option)
 if a:
-	progress('!Unable to run README_FARFAR')
+	progress('!Computation failed')
 	exit(1)
+
+exit(0)
 
 #minimization
 console("Minimization")
@@ -169,8 +160,8 @@ if a:
 	progress('!Unable to select the best files')
 	exit(1)
 
-#Convert to PDB
-console("Convert to PDB")
+#Conversion to PDB
+console("Conversion to PDB")
 progress('10')
 
 a += system(exportcmd+"$RNA_TOOLS/silent_util/extract_lowscore_decoys.py %s/aptamer_best.out 5"%path)
@@ -178,9 +169,9 @@ if a:
 	progress('!Cannot convert .out to .pdb')
 	exit(1)
 
-#Convert to DNA
+#Conversion to DNA
 if int(argv[3]):
-	console("Retro-transcription to DNA")
+	console("Conversion to DNA")
 	progress('11')
 	
 	try:
