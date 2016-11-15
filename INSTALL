@@ -18,6 +18,6 @@ rm ViennaRNA-2.2.7.tar.gz
 tar -xvzf rosetta_src_3.7_bundle.tgz
 mv rosetta_src_2016.32.58837_bundle Rosetta
 python install.py
-	cd /Rosetta/main/source
+cd Rosetta/main/source
 ./scons.py -j2 mode=release bin
 cd ../../..
